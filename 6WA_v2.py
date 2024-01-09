@@ -96,58 +96,70 @@ while True:
         messages_100ms = [
             
 
-            can.Message(arbitration_id=0xc0, data=[ # JBBE alive counter (dont know if this is needed but it was on kcan1 so i put it)
+            can.Message(arbitration_id=0xc0, data=[ # JBBE alive counter "alive ZGM"
                 alive_counter | 0xF0, 255], is_extended_id=False),
             
-            can.Message(arbitration_id=0xd7, data=[ # Airbag
+            can.Message(arbitration_id=0xd7, data=[ # Airbag "alive counter, safety"
                 alive_counter | 0xF0, 255], is_extended_id=False),
             
-            can.Message(arbitration_id=0x12f, data=[ # Ignition
+            can.Message(arbitration_id=0x12f, data=[ # Ignition "terminals"
                 0xfb, alive_counter, 0x8a, 0x1c, alive_counter, 0x05, 0x30, 0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x1f6, data=[ # Directionals
+            can.Message(arbitration_id=0x1f6, data=[ # Directionals "turn indicators"
                 0x01+(left_directional*16)+(right_directional*32),0xf1], is_extended_id=False),
             
-            can.Message(arbitration_id=0x21a, data=[ # lights
+            can.Message(arbitration_id=0x21a, data=[ # lights "lamp status"
                 (parking_lights*4)+(highbeam*2)+(foglight*32)+(rear_foglight*64), 0, 0xf7], is_extended_id=False),
+            
+            can.Message(arbitration_id=0x26a, data=[ # self-leveling suspension
+                0x02, 0x04, 0x18, 0,0,0,0,0x04], is_extended_id=False),
+            
+            can.Message(arbitration_id=0x287, data=[ # Road Signs Identification 
+                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
             
             can.Message(arbitration_id=0x291, data=[ # MIL, set langage and units
                 0x02, 0x04, 0x18, 0,0,0,0,0x04], is_extended_id=False),
             
-            can.Message(arbitration_id=0x2a7, data=[ # Power STeering
-                6,54,0,0,25], is_extended_id=False),
+            can.Message(arbitration_id=0x2a7, data=[ # Power STeering "display, Check Control, driving dynamics" 
+                alive_counter,54,0,0,25], is_extended_id=False),
             
-            can.Message(arbitration_id=0x2c4, data=[ # mpg?
+            can.Message(arbitration_id=0x2c4, data=[ # mpg? "status, engine fuel consumption"
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x30b, data=[ # Auto Start/Stop
+            can.Message(arbitration_id=0x30b, data=[ # Auto Start/Stop "status, automatic engine start-stop function"
                 0,0,0,4,0,0,0,0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x349, data=[ # Fuel level
-                0xcc,0xcc,0xcc,0xcc,0xcc,0xcc], is_extended_id=False),
+            can.Message(arbitration_id=0x327, data=[ # Lane Departure Assist
+                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
             
-            can.Message(arbitration_id=0x34f, data=[ # Handbrake status
+            can.Message(arbitration_id=0x349, data=[ # Fuel level "raw data, fuel tank level"
+                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
+            
+            can.Message(arbitration_id=0x34f, data=[ # Handbrake status "status, handbrake contact"
                 0xfd,0xff], is_extended_id=False),
             
-            can.Message(arbitration_id=0x368, data=[ # TPMS
+            can.Message(arbitration_id=0x368, data=[ # TPMS "tyre status"
                 0,0,0,0,0,0,0,0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x36a, data=[ # Auto Highbeam
+            can.Message(arbitration_id=0x36a, data=[ # Auto Highbeam "status, high-beam assist"
                 0xff,0xff,0xff,0xff,0,0,0,0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x36e, data=[ # ABS/TC
-                0x00, 0x98, 0x00, 0x80, 0x00, 0xF4, 0xE8, 0x10], is_extended_id=False),
+            can.Message(arbitration_id=0x36e, data=[ # ABS/TC "display check control bypass"
+                0x00, alive_counter, 0x00, 0x80, 0x00, 0xF4, 0xE8, 0x10], is_extended_id=False),
             
-            can.Message(arbitration_id=0x36f, data=[ # Park light
+            can.Message(arbitration_id=0x36f, data=[ # Park light "display, Check Control bypass, EMF"
                 0xff,0xff,0xff,0xff,0,0,0,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x39e, data=[ # Date and time
                 date.hour,date.minute,date.second,date.day,date.year>>8,date.year&0xff,0,0xf2], is_extended_id=False),
             
-            can.Message(arbitration_id=0x3a7, data=[ # Drive Mode
+            can.Message(arbitration_id=0x3a7, data=[ # Drive Mode "configuration, driving dynamics switch"
                 0, alive_counter, 0, alive_counter, 5,0,0,0], is_extended_id=False),
             
-            can.Message(arbitration_id=0x3f9, data=[ # Oil and coolant temp
+            can.Message(arbitration_id=0x3fd, data=[ # Gear 
+                0x02, 148, alive_counter, 148, 148, 148, 148, alive_counter], is_extended_id=False),
+            
+            can.Message(arbitration_id=0x3f9, data=[ # Oil and coolant temp "status, gear selection" "drivetrain data"
                 0x02, 148, alive_counter, 148, 148, 148, 148, alive_counter], is_extended_id=False),
             
             can.Message(arbitration_id=0x581, data=[ # Seatbelt
@@ -201,8 +213,8 @@ while True:
         trunk = not trunk
         airbag = not airbag
         seatbelt = not seatbelt
-        left_directional = not left_directional
-        right_directional = not right_directional
+        #left_directional = not left_directional
+        #right_directional = not right_directional
         tc = not tc
         abs = not abs
         battery = not battery
