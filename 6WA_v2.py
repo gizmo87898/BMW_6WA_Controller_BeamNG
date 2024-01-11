@@ -16,13 +16,16 @@ start_time_100ms = time.time()
 start_time_10ms = time.time()
 start_time_5s = time.time()
 
-id_counter = 0x360
 
-alive_counter = 0
+id_counter = 0
+
+counter_8bit = 0
+counter_4bit_100ms = 0
+counter_4bit_10ms = 0
 abs_counter = 0
 
 rpm = 2000
-speed = 20
+speed = 33456
 coolant_temp = 120
 fuel = 50
 
@@ -52,6 +55,21 @@ rear_left = 30
 rear_right = 30
 airbag = False
 seatbelt = False
+
+def crc8_sae_j1850(data, xor, polynomial, init_val):
+    crc = init_val
+
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            if crc & 0x80:
+                crc = (crc << 1) ^ polynomial
+            else:
+                crc <<= 1
+            crc &= 0xFF
+
+    return crc ^ xor
+
 
 while True:
     current_time = time.time()
@@ -97,13 +115,13 @@ while True:
             
 
             can.Message(arbitration_id=0xc0, data=[ # JBBE alive counter "alive ZGM"
-                alive_counter | 0xF0, 255], is_extended_id=False),
+                counter_8bit | 0xF0, 255], is_extended_id=False),
             
             can.Message(arbitration_id=0xd7, data=[ # Airbag "alive counter, safety"
-                alive_counter | 0xF0, 255], is_extended_id=False),
+                counter_8bit, 255], is_extended_id=False),
             
             can.Message(arbitration_id=0x12f, data=[ # Ignition "terminals"
-                0xfb, alive_counter, 0x8a, 0x1c, alive_counter, 0x05, 0x30, 0], is_extended_id=False),
+                0xfb, counter_8bit, 0x8a, 0x1c, counter_8bit, 0x05, 0x30, 0], is_extended_id=False),
             
             can.Message(arbitration_id=0x1f6, data=[ # Directionals "turn indicators"
                 0x01+(left_directional*16)+(right_directional*32),0xf1], is_extended_id=False),
@@ -115,25 +133,28 @@ while True:
                 0x02, 0x04, 0x18, 0,0,0,0,0x04], is_extended_id=False),
             
             can.Message(arbitration_id=0x287, data=[ # Road Signs Identification 
-                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
+                0xff,0xff,0xff,random.randint(0,255),0xff], is_extended_id=False),
             
             can.Message(arbitration_id=0x291, data=[ # MIL, set langage and units
                 0x02, 0x04, 0x18, 0,0,0,0,0x04], is_extended_id=False),
             
             can.Message(arbitration_id=0x2a7, data=[ # Power STeering "display, Check Control, driving dynamics" 
-                alive_counter,54,0,0,25], is_extended_id=False),
+                0xa7,counter_4bit_100ms,0xfe,0xff,0x14], is_extended_id=False),
+            
+            can.Message(arbitration_id=0x2bb, data=[ # mpg
+                0xbb,counter_8bit,counter_8bit,counter_8bit,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x2c4, data=[ # mpg? "status, engine fuel consumption"
-                0,0,0,0,0,0,0,0], is_extended_id=False),
+                0xc4,counter_4bit_100ms,0,0,0,random.randint(0xa0,0xa9),0,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x30b, data=[ # Auto Start/Stop "status, automatic engine start-stop function"
                 0,0,0,4,0,0,0,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x327, data=[ # Lane Departure Assist
-                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
+                counter_4bit_100ms+0x50, 0x40, 0x46, 0xf1], is_extended_id=False),
             
             can.Message(arbitration_id=0x349, data=[ # Fuel level "raw data, fuel tank level"
-                0x28,0x23,0x28,0x23,0x28,0x23], is_extended_id=False),
+                counter_8bit, counter_8bit, counter_8bit, counter_8bit,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x34f, data=[ # Handbrake status "status, handbrake contact"
                 0xfd,0xff], is_extended_id=False),
@@ -145,62 +166,86 @@ while True:
                 0xff,0xff,0xff,0xff,0,0,0,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x36e, data=[ # ABS/TC "display check control bypass"
-                0x00, alive_counter, 0x00, 0x80, 0x00, 0xF4, 0xE8, 0x10], is_extended_id=False),
+                random.randint(0,255), (counter_8bit>>4)+240, 0xfe, 0xff,0x14], is_extended_id=False),
             
             can.Message(arbitration_id=0x36f, data=[ # Park light "display, Check Control bypass, EMF"
-                0xff,0xff,0xff,0xff,0,0,0,0], is_extended_id=False),
+                random.randint(0,255), (counter_8bit>>4)+240, 0xfe, 0xff,0x14], is_extended_id=False),
             
             can.Message(arbitration_id=0x39e, data=[ # Date and time
                 date.hour,date.minute,date.second,date.day,date.year>>8,date.year&0xff,0,0xf2], is_extended_id=False),
             
             can.Message(arbitration_id=0x3a7, data=[ # Drive Mode "configuration, driving dynamics switch"
-                0, alive_counter, 0, alive_counter, 5,0,0,0], is_extended_id=False),
+                0, counter_8bit, 0, counter_8bit, 5,0,0,0], is_extended_id=False),
             
             can.Message(arbitration_id=0x3fd, data=[ # Gear 
-                0x02, 148, alive_counter, 148, 148, 148, 148, alive_counter], is_extended_id=False),
+                0xff, counter_4bit_100ms, 0x20, 0xfc,0xFF], is_extended_id=False),
             
             can.Message(arbitration_id=0x3f9, data=[ # Oil and coolant temp "status, gear selection" "drivetrain data"
-                0x02, 148, alive_counter, 148, 148, 148, 148, alive_counter], is_extended_id=False),
+                0x02, 148, counter_8bit, 148, 148, 148, 148, counter_8bit], is_extended_id=False),
             
             can.Message(arbitration_id=0x581, data=[ # Seatbelt
-                alive_counter | 0xF0, 255], is_extended_id=False),
+                counter_8bit | 0xF0, 255], is_extended_id=False),
         
             can.Message(arbitration_id=id_counter, data=[
                 random.randint(0,255),random.randint(0,255),random.randint(0,255),random.randint(0,255),random.randint(0,255),random.randint(0,255),random.randint(0,255),random.randint(0,255)], is_extended_id=False),
         ]
         
-        alive_counter = (alive_counter + 1) % 256
+        #Update checksums and counters here
+        counter_8bit = (counter_8bit + 1) % 256
+
+        counter_4bit_100ms = (counter_4bit_100ms + 1) % 15
+        messages_100ms[9].data[0] = crc8_sae_j1850(messages_100ms[9].data, 0xde, 0x1d,0) # MPG 2bb checksum
+        messages_100ms[10].data[0] = crc8_sae_j1850(messages_100ms[10].data, 0xc6, 0x1d,0) # MPG 2c4 checksum
+        messages_100ms[21].data[0] = crc8_sae_j1850(messages_100ms[21].data[1:], 0xD6, 0x1d,0xff) # Gear Checksum (doesnt wokr)
+        messages_100ms[8].data[0] = crc8_sae_j1850(messages_100ms[8].data, id_counter, 0x1d,0) # Steering/Driving Dynamics Checksum (doesnt wokr)
+
         if ((((messages_100ms[2].data[2] >> 4) + 3) << 4) & 0xF0) | 0x03:
             messages_100ms[2].data[4] = 0x00
+            
+            
+        # Send Messages
         for message in messages_100ms:
             bus.send(message)
             #print(message)
-            wpt.sleep(0.05)
+            if message.arbitration_id == 0x3fd:
+                print(message)
+            wpt.sleep(0.001)
         start_time_100ms = time.time()
 
 
     # Execute code every 10ms
     elapsed_time_10ms = current_time - start_time_10ms
     if elapsed_time_10ms >= 0.01:  # 10ms
+        counter_4bit_10ms = (counter_4bit_10ms + 1) % 15
+        #print(counter_4bit_10ms)
+        
+        rpmval = int(rpm/10.3)
+        
         messages_10ms = [
             can.Message(arbitration_id=0xf3, data=[ # RPM
-                0xf3, (int(rpm * 1.557) & 0xff), (int(rpm * 1.557) >> 8), 0xc0, 0xF0, 0x44, 0xFF, 0xFF], is_extended_id=False),    
+                0xf3, (rpmval&0xf)*16 + counter_4bit_10ms, (rpmval >> 4) & 0xFF, 0xc0, 0xF0, 0x44, 0xFF, 0xFF], is_extended_id=False),    
             can.Message(arbitration_id=0x1a1, data=[ # Speed
-                0x01,0xf1], is_extended_id=False),
+                0xa1,0xc0, speed&0xff, speed>>8, 0x81], is_extended_id=False),
         ]
+        #do checksums here
+        messages_10ms[1].data[0] = crc8_sae_j1850(messages_10ms[1].data, 0x2c, 0x1d,0) # Speed Checksum (dont work)
+
+        messages_10ms[0].data[0] = crc8_sae_j1850(messages_10ms[0].data, 0x2c, 0x1d,0) # RPM Checksum
         
         for message in messages_10ms:
+            #if message.arbitration_id == 0xf3:
+                #print(message)
             bus.send(message)
-            wpt.sleep(0.002)
+            wpt.sleep(0.001)
         start_time_10ms = time.time()
 
     # Execute code every 5s
     elapsed_time_5s = current_time - start_time_5s
-    if elapsed_time_5s >= 3:
+    if elapsed_time_5s >= 5:
         id_counter += 1
         print(hex(id_counter))
         
-        rpm = random.randint(0,8000)
+        rpm = random.randint(0,7500)
         speed = random.randint(0,160)
         tpms = not tpms
         cruise_control = not cruise_control
