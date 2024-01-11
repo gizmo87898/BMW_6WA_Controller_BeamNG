@@ -21,6 +21,7 @@ id_counter = 0
 
 counter_8bit = 0
 counter_4bit_100ms = 0
+counter_4bit_eps = 0
 counter_4bit_10ms = 0
 abs_counter = 0
 
@@ -139,7 +140,7 @@ while True:
                 0x02, 0x04, 0x18, 0,0,0,0,0x04], is_extended_id=False),
             
             can.Message(arbitration_id=0x2a7, data=[ # Power STeering "display, Check Control, driving dynamics" 
-                0xa7,counter_4bit_100ms,0xfe,0xff,0x14], is_extended_id=False),
+                0xa7,counter_4bit_eps+0xf0,0xfe,0xff,0x14], is_extended_id=False),
             
             can.Message(arbitration_id=0x2bb, data=[ # mpg
                 0xbb,counter_8bit,counter_8bit,counter_8bit,0], is_extended_id=False),
@@ -194,10 +195,12 @@ while True:
         counter_8bit = (counter_8bit + 1) % 256
 
         counter_4bit_100ms = (counter_4bit_100ms + 1) % 15
+        counter_4bit_eps = (counter_4bit_eps + 4) % 15
+
         messages_100ms[9].data[0] = crc8_sae_j1850(messages_100ms[9].data, 0xde, 0x1d,0) # MPG 2bb checksum
         messages_100ms[10].data[0] = crc8_sae_j1850(messages_100ms[10].data, 0xc6, 0x1d,0) # MPG 2c4 checksum
         messages_100ms[21].data[0] = crc8_sae_j1850(messages_100ms[21].data[1:], 0xD6, 0x1d,0xff) # Gear Checksum (doesnt wokr)
-        messages_100ms[8].data[0] = crc8_sae_j1850(messages_100ms[8].data, id_counter, 0x1d,0) # Steering/Driving Dynamics Checksum (doesnt wokr)
+        messages_100ms[8].data[0] = crc8_sae_j1850(messages_100ms[8].data[1:], 0x9e,0x1d,0xff) # Steering/Driving Dynamics Checksum (doesnt wokr)
 
         if ((((messages_100ms[2].data[2] >> 4) + 3) << 4) & 0xF0) | 0x03:
             messages_100ms[2].data[4] = 0x00
@@ -207,7 +210,7 @@ while True:
         for message in messages_100ms:
             bus.send(message)
             #print(message)
-            if message.arbitration_id == 0x3fd:
+            if message.arbitration_id == 0x2a7:
                 print(message)
             wpt.sleep(0.001)
         start_time_100ms = time.time()
